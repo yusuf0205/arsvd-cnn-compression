@@ -1,0 +1,4 @@
+Observations:
+	upon a certain increase of learning rate there is no increase in accuracy
+	even after increasing the no of epoch still the accuracy doesn't increase significantly
+	maximum accuracy reached was 99.10%
