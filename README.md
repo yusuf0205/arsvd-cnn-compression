@@ -1,37 +1,74 @@
-# Adaptive-Rank SVD (ARSVD) Neural Network Compression 🧠⚡
+# Adaptive-Rank SVD (ARSVD) Neural Network Compression
 
-This repository contains the code, research, and presentation materials for my **1-Month Research Internship** at the **National Institute of Technology Calicut (NITC)**, conducted under the guidance of **Dr. Ameer PM** Professor and Research scholar **vijeesh**.
+Code, experimental notebooks, and research documentation from a 1-month Edge AI research internship at the National Institute of Technology Calicut (NITC), conducted under the guidance of Prof. Ameer P.M. and research scholar Vijeesh.
 
-### 📌 Project Overview
-As Deep Learning models grow exponentially in size, deploying them on edge devices with limited memory and compute power has become a major engineering bottleneck. This research focuses on mathematically compressing Neural Networks without sacrificing their predictive accuracy. 
+## Overview
 
-By implementing **Adaptive-Rank Singular Value Decomposition (ARSVD)**, we can identify and mathematically prune redundant weights inside fully connected (Linear) and Convolutional layers, replacing massive parameter blocks with highly efficient "Hourglass Bottleneck" sub-layers.
+Deploying deep neural networks on resource-constrained edge devices requires reducing memory footprint and multiply-accumulate (MAC) operations while preserving predictive accuracy. This project implements **Adaptive-Rank Singular Value Decomposition (ARSVD)** in PyTorch to factorize dense weight matrices and 4D convolutional kernels into low-rank bottleneck sub-layers.
 
-### 🔬 Key Features & Research Highlights
-* **Spectral Entropy Thresholding:** Instead of blindly deleting weights, the algorithm calculates the spectral entropy of each layer to dynamically select the optimal Rank (*k*) to preserve a specific percentage of data variance (e.g., *tau* = 0.80).
-* **FC1 & Conv2d Targeted Compression:** Custom PyTorch surgery scripts that safely unfold 4D Convolutional tensors into 2D matrices, perform SVD, and refold them into spatially compressed sub-layers (Standard Conv + 1x1 Pointwise Conv).
-* **Hardware Safety Net:** An algorithmic failsafe that calculates projected FLOPs and parameter counts *before* splitting a layer, ensuring the compression physically accelerates the hardware.
-* **Ablation Studies:** Extensive hyperparameter sweeps evaluating the trade-offs between parameter reduction, inference latency, and accuracy.
+## Key Methods
 
----
+- **Spectral Entropy Rank Selection**: Computes the normalized singular-value energy distribution (spectral entropy) of each target layer to select the truncation rank k that retains a target variance threshold (for example, 	au = 0.80).
+- **Linear and Conv2d Layer Decomposition**: Unfolds 4D convolutional weight tensors (C_out, C_in, K_h, K_w) into 2D matrices, applies truncated SVD, and reconstructs them as a two-stage sequential bottleneck (reduced-rank spatial convolution followed by a 1x1 pointwise projection).
+- **Hardware FLOPs Guardrail**: Evaluates the analytical parameter count and MAC cost before replacing a layer, skipping decomposition if the chosen rank k exceeds the break-even threshold where factorization would increase parameters.
+- **Ablation Sweeps**: Evaluates accuracy, parameter count, and FLOPs across standard SVD, Energy-threshold SVD (ESVD), and Adaptive-Rank SVD (ARSVD) on FC1 alone and combined Conv2d + FC1 configurations.
 
-### 📊 Performance Results (Custom MNIST CNN)
-By strictly targeting the highest-density layers (Conv2d Layer 3 and Fully Connected Layer 1), we successfully accelerated the forward pass and reduced the memory footprint with negligible impact on the model's accuracy.
+## Experimental Results (MNIST CNN)
 
-| Evaluation Metric | Original CNN | ARSVD Compressed CNN | Overall Impact |
+Targeting the highest-density layers (Convolutional Layer 3 and Fully Connected Layer 1) yielded the following compression trade-off on the MNIST test set:
+
+| Metric | Baseline CNN | ARSVD Compressed CNN | Change |
 | :--- | :--- | :--- | :--- |
-| **Model Accuracy** | 98.86% | 98.65% | **- 0.21%** (Negligible Drop) |
-| **Total Parameters** | 421,642 | 349,161 | **17.19%** Memory Saved |
-| **Compute FLOPs (MACs)** | 4,278,922 | 3,425,658 | **19.94%** Compute Saved |
+| **Test Accuracy** | 98.86% | 98.65% | -0.21% |
+| **Total Parameters** | 421,642 | 349,161 | -17.19% |
+| **Compute (MACs)** | 4,278,922 | 3,425,658 | -19.94% |
 
----
+Peak baseline training accuracy reached 99.10%, beyond which additional epochs or higher learning rates produced diminishing returns (docs/OBSERVATIONS.txt).
 
-### 📂 Repository Structure
-```text
+## Repository Structure
+
+`	ext
 arsvd-cnn-compression/
-├── docs/                   # Research papers and literature review
-├── presentation/           # Final slide decks and visual assets
-├── src/                    # Source code, Jupyter notebooks, and PyTorch scripts
-├── models/                 # Saved state_dicts for baseline and compressed models
-├── .gitignore              # Ignores __pycache__, large datasets, and heavy .pth files
-└── README.md               # Project documentation
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ CNN/CNN.ipynb                    # Baseline MNIST CNN training and evaluation
+â”‚   â”œâ”€â”€ SVD/SVD.ipynb                    # Fixed-rank SVD matrix factorization baseline
+â”‚   â”œâ”€â”€ ESVD/ESVD_FC1_CNN.ipynb          # Energy-threshold SVD on Fully Connected Layer 1
+â”‚   â”œâ”€â”€ ESVD/ESVD_CNN.ipynb              # Energy-threshold SVD across Conv2d and Linear layers
+â”‚   â””â”€â”€ ArSVD/ArSVD.ipynb                # Adaptive-Rank SVD with spectral entropy thresholding
+â”œâ”€â”€ Refernece/
+â”‚   â””â”€â”€ CNN_MNIST_ARSVD_modified (1).ipynb
+â”œâ”€â”€ models/
+â”‚   â””â”€â”€ cnn_model.pth                    # Pretrained baseline CNN weights
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ OBSERVATIONS.txt                 # Training convergence notes
+â”‚   â”œâ”€â”€ Research Paper/                  # Reference papers on pruning and low-rank approximation
+â”‚   â”œâ”€â”€ Reviews/                         # Manual rank and FLOPs calculation derivations (PDF)
+â”‚   â””â”€â”€ Linkedin/                        # Result summary plots and visual snapshots
+â”œâ”€â”€ presentation/
+â”‚   â”œâ”€â”€ Comprehensive Guide.pdf          # Technical guide to SVD, ESVD, and ARSVD
+â”‚   â”œâ”€â”€ DPRP.pptx                        # Dynamic Parameter Rank Pruning presentation
+â”‚   â”œâ”€â”€ Deep Learning.pptx               # Introductory neural network compression deck
+â”‚   â””â”€â”€ ESVD-Compression-of-Fully-Connected-Layers.pptx
+â”œâ”€â”€ LICENSE
+â””â”€â”€ README.md
+`
+
+## Getting Started
+
+1. Install Python 3.9+ and the required dependencies:
+
+`ash
+pip install torch torchvision numpy matplotlib jupyter
+`
+
+2. Launch Jupyter Notebook from the repository root:
+
+`ash
+jupyter notebook
+`
+
+3. Open src/CNN/CNN.ipynb to train or inspect the baseline model, then run src/ArSVD/ArSVD.ipynb to execute the spectral-entropy compression pipeline and benchmark table generation.
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
